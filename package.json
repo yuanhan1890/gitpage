@@ -1,0 +1,23 @@
+{
+  "name": "gitpage",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "gitpage": "index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name": "yuanhan1890",
+    "email": "yuanpy2009@qq.com",
+    "url": "https://github.com/yuanhan1890"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "simple-git": "^1.107.0",
+    "yargs": "^13.2.2"
+  }
+}
