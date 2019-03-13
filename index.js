@@ -74,7 +74,7 @@ const action = {
 }[args[0]]
 
 if (action) {
-  page(action)
+  page(ACTIONS[action])
 } else {
   console.log('未知命令')
 }
