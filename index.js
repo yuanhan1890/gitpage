@@ -70,7 +70,7 @@ const action = {
   'l': 'newer',
   'r': 'older',
   '.':'oldest',
-  '--': 'latest',
+  '-': 'latest',
 }[args[0]]
 
 if (action) {
