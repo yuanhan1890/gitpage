@@ -66,4 +66,15 @@ async function page(action) {
 
 const { _: args } = require('yargs').argv
 
-page(ACTIONS[args[0]])
+const action = {
+  'l': 'newer',
+  'r': 'older',
+  '.':'oldest',
+  '--': 'latest',
+}[args[0]]
+
+if (action) {
+  page(action)
+} else {
+  console.log('未知命令')
+}
