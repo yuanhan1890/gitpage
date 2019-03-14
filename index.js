@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-const git = require('simple-git/promise')(process.cwd())
+const repoPath = process.cwd()
+const repoGit = `${repoPath.replace(/(\/|\\)$/, '')}/.git`
+const git = require('simple-git/promise')(repoPath)
+const getCommitStream = require('./stream')
 
 if (!git.checkIsRepo()) {
   console.error('不在git仓库')
@@ -24,44 +27,85 @@ async function page(action) {
     return
   }
 
-  const { all } = await git.log()
+  const currentCommit = await getCommitStream({
+    path: repoGit,
+    args: ['-1'],
+    onCommits(commitHashs, done) {
+      done(commitHashs[0])
+    }
+  })
 
-  // 获取当前commit id
-  const currentCommit = all[0]
+  const currentCommitDate_ = await git.show(['-s', '--format=%ct', currentCommit])
+  const currentCommitDate = parseInt(currentCommitDate_, 10)
 
   // checkout到mater分支
   await git.checkout('master')
-  const { all: branchCommits } = await git.log()
 
   if (action === ACTIONS.oldest) {
-    const lastCommit = branchCommits[branchCommits.length - 1]
-    await git.checkout(lastCommit.hash)
+    const lastCommit = await getCommitStream({
+      path: repoGit,
+      args: ['--reverse'],
+      onCommits(commitHashs, done) {
+        done(commitHashs[0])
+      }
+    })
+    await git.checkout(lastCommit)
     return
   }
 
-  const commitIndex = branchCommits.findIndex(({ hash }) => {
-    return hash === currentCommit.hash
-  })
+  let fn = null
+  if (action === ACTIONS.older) {
+    let count = 0
+    const commit = await getCommitStream({
+      path: repoGit,
+      args: [currentCommit],
+      onCommits(commitHashs, done) {
+        if (count + commitHashs.length >= 2) {
+          done(commitHashs[1 - count])
+          return
+        }
+        count += commitHashs.length
+      }
+    })
 
-  if (commitIndex === 0 && action === ACTIONS.newer) {
-    console.log('已经在第一页')
+    if (commit === currentCommit || !commit) {
+      console.log('已经在最后一页')
+    }
+
+    if (commit) {
+      await git.checkout(commit)
+    } else {
+      await git.checkout(currentCommit)
+    }
+    return
+  } else if (action === ACTIONS.newer) {
+    let count = 0
+    const commit = await getCommitStream({
+      path: repoGit,
+      args: ['--date', 'unix', '--since', currentCommitDate, '--reverse'],
+      onCommits(commitHashs, done) {
+        if (count + commitHashs.length >= 2) {
+          done(commitHashs[1 - count])
+          return
+        }
+        count += commitHashs.length
+      }
+    })
+
+    if (commit === currentCommit) {
+      console.log('已经在第一页')
+    }
+
+    if (commit) {
+      await git.checkout(commit)
+    } else {
+      await git.checkout(currentCommit)
+    }
     return
   }
-  if (commitIndex === branchCommits.length - 1 && action === ACTIONS.older) {
-    console.log('已经在最后一页')
-    return
-  }
 
-  let page = action === ACTIONS.newer ? commitIndex - 1 : (
-    action === ACTIONS.older ? commitIndex + 1 : undefined
-  )
-
-  if (!page) {
-    console.error('未知命令')
-    return
-  }
-
-  await git.checkout(branchCommits[page].hash)
+  console.error('未知命令');
+  return
 }
 
 const { _: args } = require('yargs').argv
