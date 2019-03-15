@@ -21,9 +21,9 @@ const ACTIONS = {
   latest: 3
 }
 
-async function page(action) {
+async function page(action, branch = "master") {
   if (action === ACTIONS.latest) {
-    await git.checkout('master')
+    await git.checkout(branch)
     return
   }
 
@@ -38,7 +38,7 @@ async function page(action) {
   const currentCommitDate = await git.show(['-s', '--format=%cd', currentCommit])
 
   // checkout到mater分支
-  await git.checkout('master')
+  await git.checkout(branch)
 
   if (action === ACTIONS.oldest) {
     const lastCommit = await getCommitStream({
@@ -114,7 +114,7 @@ async function page(action) {
   return
 }
 
-const { _: args } = require('yargs').argv
+const { _: args, branch } = require('yargs').argv
 
 const action = {
   'l': 'newer',
@@ -124,7 +124,7 @@ const action = {
 }[args[0]]
 
 if (action) {
-  page(ACTIONS[action])
+  page(ACTIONS[action], branch)
 } else {
   console.log('未知命令')
 }
