@@ -21,7 +21,9 @@ const ACTIONS = {
   latest: 3
 }
 
-async function page(action, branch = "master") {
+async function page({
+  action, branch = "master", pagesize = 1
+}) {
   if (action === ACTIONS.latest) {
     await git.checkout(branch)
     return
@@ -55,51 +57,79 @@ async function page(action, branch = "master") {
 
   let fn = null
   if (action === ACTIONS.older) {
-    const commit = await getCommitStream({
+    let lastCommit = null
+    let count = -1 // 因为第一个commit是原commit
+    let commit = await getCommitStream({
       path: repoGit,
       branch,
-      args: [currentCommit, '--skip', '1'],
+      args: ['--date', 'local', '--until', currentCommitDate],
       onCommits(commitHashs, done) {
-        done(commitHashs[0])
+        if (count + commitHashs.length >= pagesize) {
+          done(commitHashs[pagesize - count - 1])
+          return
+        }
+        count += commitHashs.length
+        lastCommit = commitHashs[commitHashs.length - 1]
       }
     })
 
+    if (!commit && lastCommit) {
+      commit = lastCommit
+    }
+
     if (commit === currentCommit || !commit) {
-      console.log('已经在最后一页')
+      console.log('已翻至初始commit')
     }
 
     if (commit) {
       await git.checkout(commit)
-    } else {
-      await git.checkout(currentCommit)
     }
     return
   } else if (action === ACTIONS.newer) {
+    let lastCommit = null
     let finded = false
-    const commit = await getCommitStream({
+    let count = 0
+    let commit = await getCommitStream({
       path: repoGit,
       branch,
-      args: ['--date', 'local', '--since', currentCommitDate, '--reverse', '--skip', '1'],
+      args: ['--date', 'local', '--since', currentCommitDate, '--reverse'],
       onCommits(commitHashs, done) {
+        // git log的date精度只能精确到分钟，所以这里还是会有重复的commit出现
         if (finded) {
-          done(commitHashs[0])
-          return
-        }
-
-        for (let i = 0; i < commitHashs.length; i += 1) {
-          if (currentCommit !== commitHashs[i]) {
-            continue
-          }
-
-          if (i === commitHashs.length - 1) {
-            finded = true
+          if (count + commitHashs.length >= pagesize) {
+            done(commitHashs[pagesize - total - 1])
             return
           }
 
-          done(commitHashs[i + 1])
+          count += commitHashs.length
+          lastCommit = commitHashs[commitHashs.length - 1]
+          return
         }
+
+        let i = 0
+        for (;i < commitHashs.length; i += 1) {
+          if (currentCommit === commitHashs[i]) {
+            break;
+          }
+        }
+
+        // 找到了commit，开始计数pagesize
+        find = true
+        const remain = commitHashs.length - 1 - i
+        if (remain >= pagesize) {
+          done(commitHashs[i + pagesize])
+          return
+        }
+
+        count += remain
+        lastCommit = commitHashs[commitHashs.length - 1]
+        return
       }
     })
+
+    if (!commit && lastCommit) {
+      commit = lastCommit
+    }
 
     if (commit === currentCommit) {
       console.log('已经在第一页')
@@ -107,8 +137,6 @@ async function page(action, branch = "master") {
 
     if (commit) {
       await git.checkout(commit)
-    } else {
-      await git.checkout(currentCommit)
     }
     return
   }
@@ -117,7 +145,8 @@ async function page(action, branch = "master") {
   return
 }
 
-const { _: args, branch } = require('yargs').argv
+const argv = require('yargs').argv
+const { _: args, branch } = argv
 
 const action = {
   'l': 'newer',
@@ -127,7 +156,11 @@ const action = {
 }[args[0]]
 
 if (action) {
-  page(ACTIONS[action], branch)
+  page({
+    action: ACTIONS[action],
+    pagesize: args[1],
+    branch
+  })
 } else {
   console.log('未知命令')
 }
