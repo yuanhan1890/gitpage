@@ -32,6 +32,10 @@ function getCommitStream({
           return commits_
         }, [])
 
+      if (commits.length === 0) {
+        return
+      }
+
       onCommits(commits, (result) => {
         ended = true
         resolve(result)

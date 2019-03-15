@@ -35,8 +35,7 @@ async function page(action) {
     }
   })
 
-  const currentCommitDate_ = await git.show(['-s', '--format=%ct', currentCommit])
-  const currentCommitDate = parseInt(currentCommitDate_, 10)
+  const currentCommitDate = await git.show(['-s', '--format=%cd', currentCommit])
 
   // checkout到mater分支
   await git.checkout('master')
@@ -55,16 +54,11 @@ async function page(action) {
 
   let fn = null
   if (action === ACTIONS.older) {
-    let count = 0
     const commit = await getCommitStream({
       path: repoGit,
-      args: [currentCommit],
+      args: [currentCommit, '--skip', '1'],
       onCommits(commitHashs, done) {
-        if (count + commitHashs.length >= 2) {
-          done(commitHashs[1 - count])
-          return
-        }
-        count += commitHashs.length
+        done(commitHashs[0])
       }
     })
 
@@ -79,16 +73,28 @@ async function page(action) {
     }
     return
   } else if (action === ACTIONS.newer) {
-    let count = 0
+    let finded = false
     const commit = await getCommitStream({
       path: repoGit,
-      args: ['--date', 'unix', '--since', currentCommitDate, '--reverse'],
+      args: ['--date', 'local', '--since', currentCommitDate, '--reverse', '--skip', '1'],
       onCommits(commitHashs, done) {
-        if (count + commitHashs.length >= 2) {
-          done(commitHashs[1 - count])
+        if (finded) {
+          done(commitHashs[0])
           return
         }
-        count += commitHashs.length
+
+        for (let i = 0; i < commitHashs.length; i += 1) {
+          if (currentCommit !== commitHashs[i]) {
+            continue
+          }
+
+          if (i === commitHashs.length - 1) {
+            finded = true
+            return
+          }
+
+          done(commitHashs[i + 1])
+        }
       }
     })
 
