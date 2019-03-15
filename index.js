@@ -97,7 +97,7 @@ async function page({
         // git log的date精度只能精确到分钟，所以这里还是会有重复的commit出现
         if (finded) {
           if (count + commitHashs.length >= pagesize) {
-            done(commitHashs[pagesize - total - 1])
+            done(commitHashs[pagesize - count - 1])
             return
           }
 
@@ -114,7 +114,7 @@ async function page({
         }
 
         // 找到了commit，开始计数pagesize
-        find = true
+        finded = true
         const remain = commitHashs.length - 1 - i
         if (remain >= pagesize) {
           done(commitHashs[i + pagesize])
