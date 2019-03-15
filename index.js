@@ -37,12 +37,13 @@ async function page(action, branch = "master") {
 
   const currentCommitDate = await git.show(['-s', '--format=%cd', currentCommit])
 
-  // checkout到mater分支
-  await git.checkout(branch)
+  // ~~checkout到mater分支~~，不需要checkout到分支上log commit
+  // await git.checkout(branch)
 
   if (action === ACTIONS.oldest) {
     const lastCommit = await getCommitStream({
       path: repoGit,
+      branch,
       args: ['--reverse'],
       onCommits(commitHashs, done) {
         done(commitHashs[0])
@@ -56,6 +57,7 @@ async function page(action, branch = "master") {
   if (action === ACTIONS.older) {
     const commit = await getCommitStream({
       path: repoGit,
+      branch,
       args: [currentCommit, '--skip', '1'],
       onCommits(commitHashs, done) {
         done(commitHashs[0])
@@ -76,6 +78,7 @@ async function page(action, branch = "master") {
     let finded = false
     const commit = await getCommitStream({
       path: repoGit,
+      branch,
       args: ['--date', 'local', '--since', currentCommitDate, '--reverse', '--skip', '1'],
       onCommits(commitHashs, done) {
         if (finded) {

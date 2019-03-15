@@ -2,10 +2,14 @@ const spawn = require('child_process').spawn
 
 function getCommitStream({
   path: repoPath,
+  branch,
   args = [],
   onCommits
 }) {
   const ops = args.slice()
+  if (branch) {
+    ops.unshift(branch)
+  }
   ops.unshift('log')
   ops.unshift('--git-dir=' + repoPath)
   // ops.push('--date', 'unix')
